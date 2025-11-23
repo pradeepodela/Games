@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Explorer's Jungle Quest</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Fredoka', sans-serif;
+            background-color: #0d9488; /* Teal/Jungle background */
+            background-image: linear-gradient(135deg, #0d9488 0%, #065f46 100%);
+        }
+        .card {
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.1);
+            border: 4px solid #fcd34d; /* Yellow border */
+        }
+        .btn-answer {
+            background-color: #fbbf24; /* Amber */
+            color: #444;
+            padding: 1rem;
+            border-radius: 12px;
+            font-size: 1.25rem;
+            font-weight: 700;
+            transition: background-color 0.15s, transform 0.1s, box-shadow 0.15s;
+            border-bottom: 4px solid #d97706; /* Darker amber for depth */
+        }
+        .btn-answer:hover:not(:disabled) {
+            background-color: #f59e0b;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .correct {
+            background-color: #10B981 !important; /* Emerald */
+            border-bottom: 4px solid #047857 !important;
+            color: white !important;
+        }
+        .incorrect {
+            background-color: #EF4444 !important; /* Red */
+            border-bottom: 4px solid #b91c1c !important;
+            color: white !important;
+        }
+        #message-box {
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 50;
+        }
+        /* Custom progress bar */
+        #progress-bar-fill {
+            transition: width 0.5s ease-in-out;
+        }
+        /* Heart animation */
+        .heart {
+            animation: pulse 0.5s infinite alternate;
+        }
+        @keyframes pulse {
+            from { transform: scale(1); }
+            to { transform: scale(1.1); }
+        }
+    </style>
+</head>
+<body class="p-4 flex items-center justify-center min-h-screen">
+
+    <!-- Game Container -->
+    <div class="w-full max-w-4xl bg-stone-50 rounded-3xl p-6 md:p-10 card">
+        <h1 class="text-4xl font-extrabold text-center text-orange-600 mb-4">
+            <span class="mr-2">🧭</span> Explorer's Jungle Quest
+        </h1>
+        <p class="text-center text-sm mb-6 text-gray-500">Master Lakhs, Roman Numerals, and Rounding!</p>
+
+        <!-- Game Status Panel -->
+        <div class="flex justify-between items-center mb-6 border-b pb-4 border-yellow-500">
+            <!-- Lives -->
+            <div id="lives-display" class="flex items-center text-xl font-bold text-red-600">
+                <span class="mr-2">Lives:</span>
+                <span id="life-icons"></span>
+            </div>
+            <!-- Streak -->
+            <div class="text-center">
+                <p id="streak-display" class="text-3xl font-bold text-pink-600">0</p>
+                <p class="text-sm font-semibold text-gray-700 -mt-1">Streak</p>
+            </div>
+            <!-- Score -->
+            <div class="text-right">
+                <p class="text-xl font-semibold text-gray-700">Score: <span id="current-score" class="text-green-600">0</span></p>
+                <p class="text-sm font-semibold text-gray-700">High Score: <span id="high-score" class="text-purple-600">0</span></p>
+            </div>
+        </div>
+
+        <!-- Progress Bar (The Quest Path) -->
+        <div class="mb-8">
+            <p class="text-sm font-semibold text-gray-700 mb-1">Jungle Path Progress:</p>
+            <div class="w-full bg-gray-300 rounded-full h-4 relative">
+                <div id="progress-bar-fill" class="h-4 bg-green-500 rounded-full" style="width: 0%"></div>
+                <span class="absolute right-0 top-0 -mt-6 text-2xl">🏆</span>
+            </div>
+        </div>
+
+
+        <!-- Question Display -->
+        <div id="quiz-area" class="text-center">
+            <div id="question-card" class="bg-amber-100 p-8 rounded-2xl mb-8 border-4 border-amber-400 shadow-inner">
+                <p id="question-text" class="text-3xl font-extrabold text-gray-800 mb-6">
+                    Loading Question...
+                </p>
+                <div id="category-tag" class="text-sm font-medium uppercase px-4 py-1 inline-block rounded-full bg-blue-500 text-white shadow-md">
+                    Category
+                </div>
+            </div>
+
+            <!-- Answer Buttons -->
+            <div id="answer-options" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <!-- Buttons will be injected here -->
+            </div>
+
+            <button id="next-button" onclick="nextQuestion()" class="mt-8 px-8 py-3 bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-xl rounded-xl hidden transition duration-150 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                Continue Quest ➡️
+            </button>
+        </div>
+
+        <!-- High Score Leaderboard -->
+        <div class="mt-10 pt-6 border-t border-yellow-500">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4 text-center">🏆 Number Explorer Ranks</h2>
+            <div id="leaderboard" class="space-y-2 max-h-40 overflow-y-auto">
+                <p class="text-center text-gray-500">Loading explorer ranks...</p>
+            </div>
+            <p id="user-id-display" class="text-sm text-center mt-4 text-gray-500"></p>
+        </div>
+    </div>
+
+    <!-- Message Box (Modal) -->
+    <div id="message-box" class="fixed hidden bg-white p-8 rounded-2xl shadow-2xl border-4 z-50 w-11/12 max-w-sm text-center">
+        <h3 id="modal-title" class="text-2xl font-bold mb-4"></h3>
+        <p id="modal-message" class="mb-6"></p>
+        <button id="modal-button" onclick="hideMessage()" class="px-6 py-2 bg-indigo-500 text-white font-semibold rounded-lg hover:bg-indigo-600">
+            Proceed
+        </button>
+    </div>
+
+    <!-- Firebase Imports and Logic -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, query, collection, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global variables provided by the environment
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        let app, db, auth, userId = null;
+
+        // --- GAME STATE ---
+        let currentScore = 0;
+        let lives = 3;
+        let streak = 0;
+        let questionsRemaining = [];
+        let currentQuestionIndex = 0;
+        let isAnswered = false;
+        let currentQuestion = null;
+
+        // Question Data
+        const questionBank = [
+            { q: "What is the numeral for 'Five lakh twenty thousand seven hundred'?", a: "5,20,700", options: ["5,20,700", "5,02,700", "5,20,070"], category: "Lakhs/Crores" },
+            { q: "Which digit is in the Lakhs place in 9,87,65,432?", a: "7", options: ["8", "7", "6"], category: "Lakhs/Crores" },
+            { q: "What is 1 Crore written as in figures?", a: "1,00,00,000", options: ["10,00,000", "1,00,00,000", "10,000,000"], category: "Lakhs/Crores" },
+            { q: "What is the expanded form of 34,500?", a: "30,000 + 4,000 + 500", options: ["30,000 + 4,000 + 50", "30,000 + 400 + 50", "30,000 + 4,000 + 500"], category: "Lakhs/Crores" },
+            { q: "What is 100 times 1 lakh?", a: "1 Crore", options: ["10 Lakhs", "1 Crore", "10 Crores"], category: "Lakhs/Crores" },
+            { q: "What is the Hindu-Arabic numeral for LXXV?", a: "75", options: ["55", "75", "125"], category: "Roman Numerals" },
+            { q: "What is the Roman numeral for 49?", a: "XLIX", options: ["IL", "XLIX", "LI"], category: "Roman Numerals" },
+            { q: "Which Roman numeral symbol can NEVER be repeated?", a: "V, L, D", options: ["I, X, C", "V, L, D", "I, V, X"], category: "Roman Numerals" },
+            { q: "What is CMX in Hindu-Arabic numerals?", a: "910", options: ["1110", "990", "910"], category: "Roman Numerals" },
+            { q: "Write the Roman numeral for 66.", a: "LXVI", options: ["LXVI", "LXIV", "CVI"], category: "Roman Numerals" },
+            { q: "Round 5,821 to the nearest 1,000.", a: "6,000", options: ["5,000", "6,000", "5,800"], category: "Rounding/Estimation" },
+            { q: "Round 145 to the nearest 10.", a: "150", options: ["140", "150", "200"], category: "Rounding/Estimation" },
+            { q: "Estimate the sum of 41 and 58 by rounding each to the nearest ten.", a: "100", options: ["90", "100", "110"], category: "Rounding/Estimation" },
+            { q: "Round 8,76,123 to the nearest lakh.", a: "9,00,000", options: ["8,00,000", "8,70,000", "9,00,000"], category: "Rounding/Estimation" },
+            { q: "The actual answer is 73. If you estimated 70, you rounded to the nearest:", a: "10", options: ["100", "10", "Lakh"], category: "Rounding/Estimation" },
+        ];
+        const totalQuestions = questionBank.length;
+
+        // --- UI Elements ---
+        const currentScoreEl = document.getElementById('current-score');
+        const highScoreEl = document.getElementById('high-score');
+        const questionTextEl = document.getElementById('question-text');
+        const categoryTagEl = document.getElementById('category-tag');
+        const answerOptionsEl = document.getElementById('answer-options');
+        const nextButton = document.getElementById('next-button');
+        const leaderboardEl = document.getElementById('leaderboard');
+        const userIdDisplayEl = document.getElementById('user-id-display');
+        const messageBox = document.getElementById('message-box');
+        const modalTitle = document.getElementById('modal-title');
+        const modalMessage = document.getElementById('modal-message');
+        const lifeIconsEl = document.getElementById('life-icons');
+        const streakDisplayEl = document.getElementById('streak-display');
+        const progressBarFillEl = document.getElementById('progress-bar-fill');
+        const modalButton = document.getElementById('modal-button');
+
+
+        // --- Game Functions ---
+
+        /**
+         * Updates the visual lives counter.
+         */
+        const updateLivesDisplay = () => {
+            lifeIconsEl.textContent = '❤️'.repeat(lives) + '🖤'.repeat(3 - lives);
+        };
+
+        /**
+         * Updates the visual progress bar based on questions completed.
+         */
+        const updateProgressBar = () => {
+            const completed = totalQuestions - questionsRemaining.length;
+            const percentage = (completed / totalQuestions) * 100;
+            progressBarFillEl.style.width = `${percentage}%`;
+        };
+
+        /**
+         * Updates the streak counter and applies styling/bonuses.
+         */
+        const updateStreak = (wasCorrect) => {
+            let bonus = false;
+            if (wasCorrect) {
+                streak++;
+                if (streak > 0 && streak % 3 === 0) { // Bonus every 3 streak
+                    currentScore += 3;
+                    currentScoreEl.textContent = currentScore;
+                    bonus = true;
+                }
+            } else {
+                streak = 0;
+            }
+            streakDisplayEl.textContent = streak;
+            streakDisplayEl.classList.toggle('heart', streak >= 3);
+            return bonus;
+        };
+
+        /**
+         * Shuffles an array in place.
+         */
+        const shuffleArray = (array) => {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        };
+
+        /**
+         * Loads and displays a new question.
+         */
+        window.loadQuestion = () => {
+            if (lives <= 0) {
+                 // Should be caught by nextQuestion, but as a safeguard:
+                showMessage("💔 Quest Failed!", `You ran out of lives with a score of ${currentScore}. Try again to beat your high score!`, true);
+                submitHighScore(currentScore);
+                nextButton.innerText = "Start New Quest";
+                nextButton.onclick = window.resetGame;
+                nextButton.classList.remove('hidden');
+                return;
+            }
+
+            if (questionsRemaining.length === 0) {
+                // Game Over - Victory
+                showMessage("🎉 Quest Complete!", `You mastered the jungle with a final score of ${currentScore}!`, true);
+                submitHighScore(currentScore);
+                currentQuestion = null;
+                nextButton.innerText = "Start New Quest";
+                nextButton.onclick = window.resetGame;
+                nextButton.classList.remove('hidden');
+                return;
+            }
+
+            // Pick a random question from the remaining pool
+            const randomIndex = Math.floor(Math.random() * questionsRemaining.length);
+            currentQuestion = questionsRemaining[randomIndex];
+            currentQuestionIndex = randomIndex; 
+
+            questionTextEl.textContent = currentQuestion.q;
+            categoryTagEl.textContent = currentQuestion.category;
+            categoryTagEl.className = `text-sm font-medium uppercase px-4 py-1 inline-block rounded-full shadow-md ${getCategoryStyle(currentQuestion.category)}`;
+
+            // Reset UI state
+            answerOptionsEl.innerHTML = '';
+            nextButton.classList.add('hidden');
+            nextButton.disabled = true;
+            isAnswered = false;
+
+            // Shuffle options for display
+            const shuffledOptions = [...currentQuestion.options];
+            shuffleArray(shuffledOptions);
+
+            // Create answer buttons
+            shuffledOptions.forEach(option => {
+                const button = document.createElement('button');
+                button.className = 'btn-answer shadow-md';
+                button.textContent = option;
+                button.onclick = () => checkAnswer(button, option, currentQuestion.a);
+                answerOptionsEl.appendChild(button);
+            });
+        };
+
+        /**
+         * Gets Tailwind style classes based on the question category.
+         */
+        const getCategoryStyle = (category) => {
+            switch (category) {
+                case 'Lakhs/Crores': return 'bg-blue-600 text-white';
+                case 'Roman Numerals': return 'bg-red-600 text-white';
+                case 'Rounding/Estimation': return 'bg-yellow-600 text-white';
+                default: return 'bg-gray-500 text-white';
+            }
+        };
+
+        /**
+         * Checks the selected answer against the correct answer.
+         */
+        const checkAnswer = (selectedButton, selectedAnswer, correctAnswer) => {
+            if (isAnswered) return;
+            isAnswered = true;
+
+            const allButtons = answerOptionsEl.querySelectorAll('button');
+            allButtons.forEach(btn => {
+                btn.disabled = true; 
+                if (btn.textContent === correctAnswer) {
+                    btn.classList.add('correct');
+                } else if (btn === selectedButton) {
+                    btn.classList.add('incorrect');
+                }
+            });
+
+            let message = "";
+            let title = "";
+            let wasCorrect = selectedAnswer === correctAnswer;
+
+            // Update streak and check for bonus
+            const gotBonus = updateStreak(wasCorrect);
+
+            if (wasCorrect) {
+                currentScore++;
+                currentScoreEl.textContent = currentScore;
+                title = "✅ Path Cleared!";
+                message = "The number is right! You proceed further into the quest.";
+            } else {
+                lives--;
+                updateLivesDisplay();
+                title = "❌ Trapped!";
+                message = `Wrong turn! That cost you a life. The correct answer was: ${correctAnswer}.`;
+            }
+            
+            if (gotBonus) {
+                 title = "🌟 Streak Bonus!";
+                 message += "\n\n3 consecutive correct answers! You earned 3 bonus points!";
+            }
+
+            // Remove the question from the pool
+            questionsRemaining.splice(currentQuestionIndex, 1);
+            updateProgressBar();
+
+            nextButton.classList.remove('hidden');
+            nextButton.disabled = false;
+            
+            // Show message box if incorrect or a bonus streak occurred
+            if (!wasCorrect || gotBonus) {
+                 showMessage(title, message, false);
+            }
+        };
+
+        /**
+         * Proceeds to the next question or ends the game.
+         */
+        window.nextQuestion = () => {
+            if (lives <= 0) {
+                // Game Over - Ran out of lives
+                showMessage("💔 Quest Failed!", `You ran out of lives with a score of ${currentScore}. Try again to beat your high score!`, true);
+                submitHighScore(currentScore);
+                nextButton.innerText = "Start New Quest";
+                nextButton.onclick = window.resetGame;
+            } else if (questionsRemaining.length === 0) {
+                // Game Over - Victory (loadQuestion handles the message)
+                window.loadQuestion();
+            } else {
+                window.loadQuestion();
+            }
+        };
+
+        /**
+         * Resets the game state.
+         */
+        window.resetGame = () => {
+            currentScore = 0;
+            lives = 3;
+            streak = 0;
+            currentScoreEl.textContent = 0;
+            questionsRemaining = [...questionBank];
+            
+            updateLivesDisplay();
+            updateStreak(false); // Reset streak visuals
+            updateProgressBar();
+
+            nextButton.innerText = "Continue Quest ➡️";
+            nextButton.onclick = window.nextQuestion;
+            window.loadQuestion();
+        };
+
+        /**
+         * Displays a modal message box.
+         * @param {string} title The title of the modal.
+         * @param {string} message The main message content.
+         * @param {boolean} isGameOver Flag to handle button text.
+         */
+        window.showMessage = (title, message, isGameOver) => {
+            modalTitle.textContent = title;
+            modalMessage.textContent = message;
+            
+            messageBox.classList.remove('hidden');
+            // Set border color based on success/failure/info
+            const isSuccess = title.includes('✅') || title.includes('🌟') || title.includes('🎉');
+            messageBox.classList.toggle('border-green-500', isSuccess);
+            messageBox.classList.toggle('border-red-500', !isSuccess);
+            
+            modalButton.textContent = isGameOver ? 'View Final Score' : 'Got it!';
+            modalButton.onclick = window.hideMessage; // Always use simple hide
+
+        };
+
+        /**
+         * Hides the modal message box.
+         * **FIXED:** Now only hides the modal. Game flow continues via main nextButton.
+         */
+        window.hideMessage = () => {
+            messageBox.classList.add('hidden');
+        };
+
+        // --- Firebase/Firestore Integration ---
+
+        /**
+         * Initializes Firebase and authenticates the user.
+         */
+        const initFirebase = async () => {
+            try {
+                if (Object.keys(firebaseConfig).length === 0) {
+                     console.error("Firebase config is empty. Cannot initialize Firestore.");
+                     leaderboardEl.innerHTML = '<p class="text-center text-red-500">Firebase not configured. Score tracking disabled.</p>';
+                     window.resetGame(); // Start game even without Firebase
+                     return;
+                }
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        userIdDisplayEl.textContent = `Explorer ID: ${userId}`; 
+                        console.log("User authenticated:", userId);
+                        setupLeaderboardListener();
+                    } else {
+                        console.log("Authentication failed or anonymous sign-in failed.");
+                    }
+                    // FIX: Call resetGame to initialize all game state (lives, score, questions)
+                    window.resetGame();
+                });
+
+            } catch (error) {
+                console.error("Error initializing Firebase or signing in:", error);
+                leaderboardEl.innerHTML = '<p class="text-center text-red-500">Failed to connect to Scoreboard.</p>';
+                window.resetGame(); // Start game anyway
+            }
+        };
+
+        /**
+         * Sets up a real-time listener for the public high score leaderboard.
+         */
+        const setupLeaderboardListener = () => {
+            if (!db) return;
+
+            const scoresColRef = collection(db, `artifacts/${appId}/public/data/number_explorer_scores`);
+            const q = scoresColRef; 
+
+            onSnapshot(q, (snapshot) => {
+                let allScores = [];
+                
+                // 1. Gather all scores
+                snapshot.docs.forEach((doc) => {
+                    const data = doc.data();
+                    allScores.push({
+                        ...data,
+                        id: doc.id
+                    });
+                });
+
+                // 2. Sort the scores in memory (JS sorting: Score DESC, Timestamp ASC)
+                allScores.sort((a, b) => {
+                    if (b.score !== a.score) {
+                        return b.score - a.score;
+                    }
+                    const timeA = a.timestamp ? a.timestamp.toMillis() : 0;
+                    const timeB = b.timestamp ? b.timestamp.toMillis() : 0;
+                    return timeA - timeB;
+                });
+
+                // 3. Limit to top 5
+                const topScores = allScores.slice(0, 5);
+
+                // 4. Render the leaderboard
+                let html = '';
+                let topScore = 0;
+
+                if (topScores.length > 0) {
+                    topScore = topScores[0].score;
+                    highScoreEl.textContent = topScore;
+                } else {
+                    highScoreEl.textContent = 0;
+                }
+
+                topScores.forEach((data, index) => {
+                    const isCurrentUser = data.userId === userId;
+                    const displayUserId = isCurrentUser ? 'You (Explorer)' : data.userId;
+
+                    html += `
+                        <div class="flex justify-between p-2 rounded-lg ${isCurrentUser ? 'bg-purple-100 font-bold border-2 border-purple-400' : 'bg-gray-50 border border-gray-200'}">
+                            <span class="text-left text-gray-700">${index + 1}. ${displayUserId}</span>
+                            <span class="text-right text-lg text-green-700">${data.score} Points</span>
+                        </div>
+                    `;
+                });
+
+                if (html === '') {
+                    leaderboardEl.innerHTML = '<p class="text-center text-gray-500">No scores recorded yet. Be the first!</p>';
+                } else {
+                    leaderboardEl.innerHTML = html;
+                }
+            }, (error) => {
+                console.error("Error fetching leaderboard:", error);
+                leaderboardEl.innerHTML = '<p class="text-center text-red-500">Error loading scores. (Check console for details)</p>';
+            });
+        };
+
+        /**
+         * Submits the final score to the leaderboard collection.
+         */
+        const submitHighScore = async (finalScore) => {
+            if (!db || !userId) {
+                console.warn("Firestore not ready or user not authenticated. Score not submitted.");
+                return;
+            }
+
+            const docId = `${userId}-${Date.now()}`;
+            const publicScoreDocRef = doc(db, `artifacts/${appId}/public/data/number_explorer_scores`, docId);
+
+            try {
+                await setDoc(publicScoreDocRef, {
+                    userId: userId,
+                    score: finalScore,
+                    timestamp: serverTimestamp()
+                });
+                console.log("High score submitted successfully:", finalScore);
+            } catch (error) {
+                console.error("Error submitting high score:", error);
+            }
+        };
+
+        // Initialize the application
+        initFirebase();
+    </script>
+</body>
+</html>
